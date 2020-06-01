@@ -2,8 +2,10 @@
 一款使用wtl编写的颜色选择器，支持从RGB、HSV颜色空间中选择颜色以及屏幕取色
 
 ![](img/Color.png)
-## 编译：
-VS2013以及WTL10
+## 编译：  
+Visual Studio 2013
+WTL10
+[https://sourceforge.net/projects/wtl/files/](https://sourceforge.net/projects/wtl/files/)
 ## 运行环境：
 window7、10
 ## 关于作者：
