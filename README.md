@@ -3,10 +3,7 @@
 
 ![](img/Color.png)
 ## 编译：  
-工具：Visual Studio 2013  
-
-库：WTL10  
-[https://sourceforge.net/projects/wtl/files/](https://sourceforge.net/projects/wtl/files/)
+需要安装Visual Studio 2013以及[WTL10](https://sourceforge.net/projects/wtl/files/)
 ## 运行环境：  
 window7、10  
 ## 关于作者：  
