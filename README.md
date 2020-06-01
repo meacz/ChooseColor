@@ -3,11 +3,11 @@
 
 ![](img/Color.png)
 ## 编译：  
-Visual Studio 2013
-WTL10
+Visual Studio 2013  
+WTL10  
 [https://sourceforge.net/projects/wtl/files/](https://sourceforge.net/projects/wtl/files/)
-## 运行环境：
-window7、10
-## 关于作者：
-(◍°∇°◍)ﾉﾞ来点个赞吧~  
+## 运行环境：  
+window7、10  
+## 关于作者：  
+(◍°∇°◍)ﾉﾞ来点个赞吧~    
 [https://space.bilibili.com/273436120](https://space.bilibili.com/273436120)
