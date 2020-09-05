@@ -95,6 +95,7 @@ public:
 		COMMAND_ID_HANDLER(IDOK, OnOK)
 		COMMAND_ID_HANDLER(IDCANCEL, OnCancel)
 		COMMAND_ID_HANDLER(IDC_MENU, OnAbout)
+		MSG_WM_SIZE(OnSize)
 		REFLECT_NOTIFICATIONS()
 	END_MSG_MAP()
 
@@ -122,6 +123,8 @@ public:
 	void OnEditControlChange(UINT uNotifyCode, int nID, CWindow wndCtl);
 	void OnDropDown(UINT uNotifyCode, int nID, CWindow wndCtl);
 	BOOL OnSetCursor(CWindow wnd, UINT nHitTest, UINT message);
+	void OnSize(UINT nType, CSize size);
+
 
 public:
 	int m_ncHeight = 28;  // 标题栏高度

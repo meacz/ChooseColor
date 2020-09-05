@@ -9,13 +9,15 @@ public:
 		MSG_WM_NCPAINT(OnNcPaint)
 		MSG_WM_SETCURSOR(OnSetCursor)
 		MSG_WM_MOUSEWHEEL(OnMouseWheel)
+		MSG_WM_SETFOCUS(OnSetFocus)
+		MSG_WM_KILLFOCUS(OnKillFocus)
 		MESSAGE_HANDLER(WM_KEYDOWN, OnKeyDown)
 	END_MSG_MAP()
 
 public:
 	int i = 0;
 	HCURSOR m_ibeam = LoadCursor(GetModuleHandle(NULL), MAKEINTRESOURCE(IDC_BLUE_IBEAM));
-
+	BOOL m_bFocus = FALSE;
 
 public:
 
@@ -54,7 +56,9 @@ public:
 	{
 		CDC dc = GetDC();
 		CRect rect;
-		CPen pen = CreatePen(PS_SOLID, 1, RGB(54, 57, 62));
+		COLORREF clBorder = RGB(68, 68, 68);
+		if (m_bFocus) clBorder = RGB(135, 145, 253);
+		CPen pen = CreatePen(PS_SOLID, 1, clBorder);
 		GetClientRect(rect);
 		rect.InflateRect(1, 1, 1, 1);
 		dc.SelectStockBrush(NULL_BRUSH);
@@ -76,4 +80,19 @@ public:
 		return DefWindowProc(uMsg, wParam, lParam);
 	}
 
+	void OnSetFocus(CWindow wndOld)
+	{
+		m_bFocus = TRUE;
+		SendMessage(WM_NCPAINT, 0, 0);
+		Invalidate(TRUE);
+		SetMsgHandled(FALSE);
+	}
+
+	void OnKillFocus(CWindow wndFocus)
+	{
+		m_bFocus = FALSE;
+		SendMessage(WM_NCPAINT, 0, 0);
+		Invalidate(TRUE);
+		SetMsgHandled(FALSE);
+	}
 };

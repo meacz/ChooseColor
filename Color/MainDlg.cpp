@@ -62,6 +62,9 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	m_eSaturation2.SubclassWindow(GetDlgItem(IDC_SATURATION));
 	m_eValue.SubclassWindow(GetDlgItem(IDC_VALUE));
 
+	// 防止edit获取焦点
+	PostMessage(WM_LBUTTONDOWN);
+
 	m_combomenu.SubclassWindow(GetDlgItem(IDC_COMMENU));
 	m_combo.SubclassWindow(GetDlgItem(IDC_COMBOCOLOR));
 	m_combo.AddString(TEXT("RGB/红"));
@@ -79,7 +82,6 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	m_piccol.Create(m_hWnd);    // 常用颜色
 
 	m_drop.m_selCol = m_selcol;
-	m_selcol.m_par = m_hWnd;
 	m_piccol.m_par = m_hWnd;
 
 	m_cDrop = LoadCursor(GetModuleHandle(NULL), MAKEINTRESOURCE(IDC_CURDROP));
@@ -95,6 +97,7 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 
 	// cursor
 	m_arrow = LoadCursor(GetModuleHandle(NULL), MAKEINTRESOURCE(IDC_BLUE_ARROW));
+	
 
 	CenterWindow();
 	CMessageLoop* pLoop = _Module.GetMessageLoop();
@@ -108,6 +111,7 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 
 HBRUSH CMainDlg::OnCtlColorEdit(CDCHandle dc, CEdit edit)
 {
+	// Edit外观
 	dc.SetBkColor(COLOR_DLG_BK2);
 	dc.SetTextColor(COLOR_EDIT_TEXT);
 	return (HBRUSH)GetStockObject(NULL_BRUSH);
@@ -677,12 +681,11 @@ LRESULT CMainDlg::OnBnClickedMin(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*
 
 void CMainDlg::OnComboBoxSelectChange(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
-	if (IDC_COMBOCOLOR == nID) SendMessage(WM_PAINT, 0, 0);
+	if (IDC_COMBOCOLOR == nID) 
+		SendMessage(WM_PAINT, 0, 0);
 	if (IDC_COMMENU == nID)
-	{
 		if (m_combomenu.GetCurSel() == 0)
 			m_dAboutDlg.DoModal();
-	}
 }
 
 void CMainDlg::CloseDialog(int nVal)
@@ -691,6 +694,252 @@ void CMainDlg::CloseDialog(int nVal)
 	::PostQuitMessage(nVal);
 }
 
+
+void CMainDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	CRect rectC1, rectC2, rectA, rtPer;
+	HWND Color1, Color2, Alpha, DropPer;
+
+	Color1 = GetDlgItem(IDC_PCOLOR);
+	Color2 = GetDlgItem(IDC_PSILDER);
+	Alpha = GetDlgItem(IDC_PALPHA);
+	DropPer = GetDlgItem(IDC_PSELECTOLD);
+
+	::GetWindowRect(Color1, &rectC1);
+	::GetWindowRect(Color2, &rectC2);
+	::GetWindowRect(Alpha, &rectA);
+	::GetWindowRect(DropPer, rtPer);
+	ClientToScreen(&point);
+
+	// 隐藏edit光标
+	::HideCaret(::GetFocus());
+	//::SetFocus(WindowFromPoint(point));
+	m_ok.SetFocus();
+
+	// color1
+	if (rectC1.PtInRect(point))
+	{
+		m_bColor = TRUE;
+		m_bHue = FALSE;
+		m_bAlpha = FALSE;
+	}
+
+	// color2
+	if (rectC2.PtInRect(point))
+	{
+		m_bHue = TRUE;
+		m_bColor = FALSE;
+		m_bAlpha = FALSE;
+	}
+
+	// alpha
+	if (rectA.PtInRect(point))
+	{
+		m_bAlpha = TRUE;
+		m_bColor = FALSE;
+		m_bHue = FALSE;
+	}
+
+	if (rtPer.PtInRect(point))
+	{
+		m_drop.ShowWindow(SW_MAXIMIZE);
+
+		m_selcol.m_bShow = TRUE;
+		SendMessage(m_selcol.m_hWnd, WM_STARTTIMER, 0, 0);
+	}
+
+
+	ColorFromPos();
+
+	// 隐藏光标
+	//if (m_bColor || m_bHue || m_bAlpha)
+	//{
+	//	while (ShowCursor(FALSE) >= 0)
+	//		ShowCursor(FALSE);
+	//}
+
+}
+
+void CMainDlg::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	m_bColor = FALSE;
+	m_bHue = FALSE;
+	m_bAlpha = FALSE;
+	ReleaseCapture();
+
+	//while (ShowCursor(TRUE) < 0)
+	//	ShowCursor(TRUE);
+
+}
+
+void CMainDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+	if (nFlags &MK_LBUTTON)
+	{
+		this->SetCapture();
+		ColorFromPos();
+	}
+}
+
+void CMainDlg::OnLButtonDblClk(UINT nFlags, CPoint point)
+{
+	CRect rect;
+	CString str;
+
+	m_grRgb.GetWindowRect(rect);
+	ScreenToClient(rect);
+	if (rect.PtInRect(point))
+	{
+		// 防止快速点击次数过多。。。
+		if (!m_bText)
+		{
+			str.Format(TEXT("%d, %d, %d"),
+				GetDlgItemInt(IDC_RED),
+				GetDlgItemInt(IDC_GREEN),
+				GetDlgItemInt(IDC_BLUE));
+			SetClipboardText(str);
+			m_bText = TRUE;
+			// 刷新文本提示区域
+			InvalidateRect(CRect(5, 8, 180, 32), FALSE);
+			SetTimer(1, 3500);
+		}
+	}
+
+	m_grHsl.GetWindowRect(rect);
+	ScreenToClient(rect);
+	if (rect.PtInRect(point))
+	{
+		if (!m_bText)
+		{
+			str.Format(TEXT("%d, %d, %d"),
+				GetDlgItemInt(IDC_HEEL),
+				GetDlgItemInt(IDC_SSTA),
+				GetDlgItemInt(IDC_SLIGHT));
+			SetClipboardText(str);
+			m_bText = TRUE;
+			InvalidateRect(CRect(5, 8, 180, 32), FALSE);
+			SetTimer(1, 3500);
+		}
+	}
+
+	m_grHsv.GetWindowRect(rect);
+	ScreenToClient(rect);
+	if (rect.PtInRect(point))
+	{
+		if (!m_bText)
+		{
+			str.Format(TEXT("%d, %d, %d"),
+				GetDlgItemInt(IDC_HUE),
+				GetDlgItemInt(IDC_SATURATION),
+				GetDlgItemInt(IDC_VALUE));
+			SetClipboardText(str);
+			m_bText = TRUE;
+			InvalidateRect(CRect(5, 8, 180, 32), FALSE);
+			SetTimer(1, 3000);
+		}
+	}
+}
+
+void CMainDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	if (m_bText)
+	{
+		m_bText = FALSE;
+		InvalidateRect(CRect(5, 8, 180, 32), FALSE);
+		KillTimer(1);
+	}
+}
+
+void CMainDlg::OnMove(CPoint ptPos)
+{
+	CRect rect, rtSil;
+
+	// init choose and normal color wnd
+	HWND hSelCol = GetDlgItem(IDC_SELCOLOR);
+	::GetWindowRect(hSelCol, rect);
+	m_selcol.MoveWindow(rect);
+	m_selcol.ShowWindow(SW_SHOW);
+
+	HWND hPicCol = GetDlgItem(IDC_PICCOL);
+	::GetWindowRect(hPicCol, rect);
+	m_piccol.MoveWindow(rect);
+	m_piccol.ShowWindow(SW_SHOW);
+
+
+	int w = 255; // rect.Width();
+	int h = 255; // rect.Height();
+
+	if (bmp_handle)
+		::DeleteObject(bmp_handle);
+
+	// color1
+	bmp_info.bmiHeader.biSize = sizeof (BITMAPINFO);
+	bmp_info.bmiHeader.biWidth = w;
+	bmp_info.bmiHeader.biHeight = h;
+	bmp_info.bmiHeader.biPlanes = 1;
+	bmp_info.bmiHeader.biBitCount = 32;
+	bmp_info.bmiHeader.biCompression = BI_RGB;
+	bmp_info.bmiHeader.biSizeImage = w * h * 32 / 8;
+	bmp_info.bmiHeader.biXPelsPerMeter =
+	bmp_info.bmiHeader.biYPelsPerMeter = 72 * 2 * 1000;
+	bmp_info.bmiHeader.biClrUsed = 0;
+	bmp_info.bmiHeader.biClrImportant = 0;
+	bmp_data = NULL;
+	bmp_handle = CreateDIBSection(
+		NULL, &bmp_info, DIB_RGB_COLORS, (void **)&bmp_data, NULL, 0);
+
+
+	if (bmp_handle2)
+		::DeleteObject(bmp_handle2);
+
+	HWND hSild = GetDlgItem(IDC_PSILDER);
+	::GetWindowRect(hSild, rtSil);
+
+	// 留12px绘制滑块
+	w = rtSil.Width() - 12;
+	h = 256;
+	m_nBuffSize = 256;
+
+	// color2
+	bmp_info2.bmiHeader.biSize = sizeof (BITMAPINFO);
+	bmp_info2.bmiHeader.biWidth = w;
+	bmp_info2.bmiHeader.biHeight = h;
+	bmp_info2.bmiHeader.biPlanes = 1;
+	bmp_info2.bmiHeader.biBitCount = 32;
+	bmp_info2.bmiHeader.biCompression = BI_RGB;
+	bmp_info2.bmiHeader.biSizeImage = w * h * 32 / 8;
+	bmp_info2.bmiHeader.biXPelsPerMeter =
+	bmp_info2.bmiHeader.biYPelsPerMeter = 72 * 2 * 1000;
+	bmp_info2.bmiHeader.biClrUsed = 0;
+	bmp_info2.bmiHeader.biClrImportant = 0;
+	bmp_data2 = NULL;
+	bmp_handle2 = CreateDIBSection(
+		NULL, &bmp_info2, DIB_RGB_COLORS, (void **)&bmp_data2, NULL, 0);
+
+	if (bmp_handle3)
+		::DeleteObject(bmp_handle3);
+
+
+	// alpha
+	bmp_info3.bmiHeader.biSize = sizeof (BITMAPINFO);
+	bmp_info3.bmiHeader.biWidth = w;
+	bmp_info3.bmiHeader.biHeight = h;
+	bmp_info3.bmiHeader.biPlanes = 1;
+	bmp_info3.bmiHeader.biBitCount = 32;
+	bmp_info3.bmiHeader.biCompression = BI_RGB;
+	bmp_info3.bmiHeader.biSizeImage = w * h * 32 / 8;
+	bmp_info3.bmiHeader.biXPelsPerMeter =
+	bmp_info3.bmiHeader.biYPelsPerMeter = 72 * 2 * 1000;
+	bmp_info3.bmiHeader.biClrUsed = 0;
+	bmp_info3.bmiHeader.biClrImportant = 0;
+	bmp_data3 = NULL;
+	bmp_handle3 = CreateDIBSection(
+		NULL, &bmp_info3, DIB_RGB_COLORS, (void **)&bmp_data3, NULL, 0);
+
+}
+
+
+// 颜色绘图实现函数 
 
 void CMainDlg::DoDrawRGB()
 {
@@ -925,51 +1174,6 @@ void CMainDlg::DoDrawHSV_Val()
 	}
 }
 
-void CMainDlg::OnDrawSilder()
-{
-	CRect rtSil;
-	HWND hSil = GetDlgItem(IDC_PSILDER);
-	::GetWindowRect(hSil, rtSil);
-
-	switch (m_combo.GetCurSel())
-	{
-		// 0 1 2 3 4 5
-		// r g b h s v
-		case	0:
-		case	1:
-		case	2:		DrawRGB_ALL();	 break;
-		case	3:		DrawHSV_H();	 break;
-		case	4:		DrawHSV_S();     break;
-		case	5:		DrawHSV_V();	 break;
-
-		default: ATLASSERT(FALSE); return;
-	}
-
-	int	i;
-
-	int		nSkip;	// number of pixels to skip after current row and before next one
-
-	DWORD	*p;		// loop pointers
-
-	int		width = rtSil.Width() - 12;
-	int		height = 255;
-	int		blend_width = width;
-	int		blend_height = height;
-
-	// prepare
-	p = bmp_data2;
-	nSkip = 0;
-
-
-	DWORD	*source = row_buffer;
-
-	i = blend_height;
-	while (i--)
-	{
-		GTDrawHelper m_Panel;
-		m_Panel.set(&p, *source++, blend_width), p += nSkip;
-	}
-}
 
 void CMainDlg::DrawRGB_ALL()
 {
@@ -1084,7 +1288,54 @@ void CMainDlg::DrawAlpha()
 	}
 }
 
-// Color Picker start
+// 绘图管理函数
+void CMainDlg::OnDrawSilder()
+{
+	CRect rtSil;
+	HWND hSil = GetDlgItem(IDC_PSILDER);
+	::GetWindowRect(hSil, rtSil);
+
+	switch (m_combo.GetCurSel())
+	{
+		// 0 1 2 3 4 5
+		// r g b h s v
+		case	0:
+		case	1:
+		case	2:		DrawRGB_ALL();	 break;
+		case	3:		DrawHSV_H();	 break;
+		case	4:		DrawHSV_S();     break;
+		case	5:		DrawHSV_V();	 break;
+
+		default: ATLASSERT(FALSE); return;
+	}
+
+	int	i;
+
+	int		nSkip;	// number of pixels to skip after current row and before next one
+
+	DWORD	*p;		// loop pointers
+
+	int		width = rtSil.Width() - 12;
+	int		height = 255;
+	int		blend_width = width;
+	int		blend_height = height;
+
+	// prepare
+	p = bmp_data2;
+	nSkip = 0;
+
+
+	DWORD	*source = row_buffer;
+
+	i = blend_height;
+	while (i--)
+	{
+		GTDrawHelper m_Panel;
+		m_Panel.set(&p, *source++, blend_width), p += nSkip;
+	}
+}
+
+// 颜色数值设置
 
 void CMainDlg::SetRGB(unsigned short r, unsigned short g, unsigned short b)
 {
@@ -1307,7 +1558,7 @@ void SColour::RGB_F_HSL(int h, int s, int l)
 	}
 }
 
-// hsl helper func
+// hsl helper function
 double SColour::HSL2RGB(double v1, double v2, double vH)
 {
 	if (vH < 0) vH += 1;
@@ -1373,6 +1624,7 @@ void SColour::RGB_F_ASS(CString szValue)
 		ss >> rgb[i];
 		ss.clear();
 	}
+	// ASS颜色格式为：B G R，so.....
 	r = rgb[2];
 	g = rgb[1];
 	b = rgb[0];
@@ -1382,7 +1634,6 @@ void SColour::RGB_F_ASS(CString szValue)
 
 
 // Main
-
 void CMainDlg::UpdateValues(SColour col)
 {
 	CString str;
@@ -1430,7 +1681,7 @@ void CMainDlg::SetSel2(int nID)
 	if (GetDlgItemInt(nID) == 0)	    i = 1;
 	if (GetDlgItemInt(nID) / 10  == 1)  i = 2;
 	if (GetDlgItemInt(nID) / 100 == 1)  i = 3;
-	::SendMessage(hwnd, EM_SETSEL, i, i);
+	::SendMessage(hwnd, EM_SETSEL, i, i);  // 重新设置光标位置
 
 	//CPoint p;
 	//GetCaretPos(&p);
@@ -1446,248 +1697,6 @@ void CMainDlg::SetSel2(int nID)
 	//ATLTRACE(L"%d %d\n", nLineIndex, nCharIndex);
 }
 
-void CMainDlg::OnLButtonDown(UINT nFlags, CPoint point)
-{
-	CRect rectC1, rectC2, rectA, rtPer;
-	HWND Color1, Color2, Alpha, DropPer;
-
-	Color1 = GetDlgItem(IDC_PCOLOR);
-	Color2 = GetDlgItem(IDC_PSILDER);
-	Alpha = GetDlgItem(IDC_PALPHA);	
-	DropPer = GetDlgItem(IDC_PSELECTOLD);
-
-	::GetWindowRect(Color1, &rectC1);
-	::GetWindowRect(Color2, &rectC2);
-	::GetWindowRect(Alpha, &rectA);
-	::GetWindowRect(DropPer, rtPer);
-	ClientToScreen(&point);
-
-	// 隐藏edit光标
-	::HideCaret(::GetFocus());
-	::SetFocus(WindowFromPoint(point));
-
-	// color1
-	if (rectC1.PtInRect(point))
-	{
-		m_bColor = TRUE;
-		m_bHue = FALSE;
-		m_bAlpha = FALSE;
-	}
-
-	// color2
-	if (rectC2.PtInRect(point))
-	{
-		m_bHue = TRUE;
-		m_bColor = FALSE;
-		m_bAlpha = FALSE;
-	}
-
-	// alpha
-	if (rectA.PtInRect(point))
-	{
-		m_bAlpha = TRUE;
-		m_bColor = FALSE;
-		m_bHue = FALSE;
-	}
-
-	if (rtPer.PtInRect(point))
-	{
-		m_drop.ShowWindow(SW_MAXIMIZE);
-		
-		m_selcol.m_bShow = TRUE;
-		SendMessage(m_selcol.m_hWnd, WM_STARTTIMER, 0, 0);
-	}
-
-
-	ColorFromPos();
-
-	// 隐藏光标
-	//if (m_bColor || m_bHue || m_bAlpha)
-	//{
-	//	while (ShowCursor(FALSE) >= 0)
-	//		ShowCursor(FALSE);
-	//}
-
-}
-
-void CMainDlg::OnLButtonUp(UINT nFlags, CPoint point)
-{
-	m_bColor = FALSE;
-	m_bHue = FALSE;
-	m_bAlpha = FALSE;
-	ReleaseCapture();
-
-	//while (ShowCursor(TRUE) < 0)
-	//	ShowCursor(TRUE);
-
-}
-
-void CMainDlg::OnMouseMove(UINT nFlags, CPoint point)
-{
-	if (nFlags &MK_LBUTTON)
-	{
-		this->SetCapture();
-		ColorFromPos();
-	}
-}
-
-void CMainDlg::OnLButtonDblClk(UINT nFlags, CPoint point)
-{
-	CRect rect;
-	CString str;
-
-	m_grRgb.GetWindowRect(rect);
-	ScreenToClient(rect);
-	if (rect.PtInRect(point))
-	{
-		// 防止快速点击次数过多。。。
-		if (!m_bText)
-		{
-			str.Format(TEXT("%d, %d, %d"),
-				GetDlgItemInt(IDC_RED),
-				GetDlgItemInt(IDC_GREEN),
-				GetDlgItemInt(IDC_BLUE));
-			SetClipboardText(str);
-			m_bText = TRUE;
-			// 刷新文本提示区域
-			InvalidateRect(CRect(5, 8, 180, 32), FALSE);
-			SetTimer(1, 3500);
-		}
-	}
-
-	m_grHsl.GetWindowRect(rect);
-	ScreenToClient(rect);
-	if (rect.PtInRect(point))
-	{
-		if (!m_bText)
-		{
-			str.Format(TEXT("%d, %d, %d"),
-				GetDlgItemInt(IDC_HEEL),
-				GetDlgItemInt(IDC_SSTA),
-				GetDlgItemInt(IDC_SLIGHT));
-			SetClipboardText(str);
-			m_bText = TRUE;
-			InvalidateRect(CRect(5, 8, 180, 32), FALSE);
-			SetTimer(1, 3500);
-		}
-	}
-
-	m_grHsv.GetWindowRect(rect);
-	ScreenToClient(rect);
-	if (rect.PtInRect(point))
-	{
-		if (!m_bText)
-		{
-			str.Format(TEXT("%d, %d, %d"),
-				GetDlgItemInt(IDC_HUE),
-				GetDlgItemInt(IDC_SATURATION),
-				GetDlgItemInt(IDC_VALUE));
-			SetClipboardText(str);
-			m_bText = TRUE;
-			InvalidateRect(CRect(5, 8, 180, 32), FALSE);
-			SetTimer(1, 3000);
-		}
-	}
-}
-
-void CMainDlg::OnTimer(UINT_PTR nIDEvent)
-{
-	if (m_bText)
-	{
-		m_bText = FALSE;
-		InvalidateRect(CRect(5, 8, 180, 32), FALSE);
-		KillTimer(1);
-	}
-}
-
-void CMainDlg::OnMove(CPoint ptPos)
-{
-	CRect rect, rtSil;
-
-	// init choose and normal color wnd
-	HWND hSelCol = GetDlgItem(IDC_SELCOLOR);
-	::GetWindowRect(hSelCol, rect);
-	m_selcol.MoveWindow(rect);
-	m_selcol.ShowWindow(SW_SHOW);
-
-	HWND hPicCol = GetDlgItem(IDC_PICCOL);
-	::GetWindowRect(hPicCol, rect);
-	m_piccol.MoveWindow(rect);
-	m_piccol.ShowWindow(SW_SHOW);
-
-
-
-	int w = 255; // rect.Width();
-	int h = 255; // rect.Height();
-
-	if (bmp_handle)
-		::DeleteObject(bmp_handle);
-
-	// color1
-	bmp_info.bmiHeader.biSize = sizeof (BITMAPINFO);
-	bmp_info.bmiHeader.biWidth = w;
-	bmp_info.bmiHeader.biHeight = h;
-	bmp_info.bmiHeader.biPlanes = 1;
-	bmp_info.bmiHeader.biBitCount = 32;
-	bmp_info.bmiHeader.biCompression = BI_RGB;
-	bmp_info.bmiHeader.biSizeImage = w * h * 32 / 8;
-	bmp_info.bmiHeader.biXPelsPerMeter =
-	bmp_info.bmiHeader.biYPelsPerMeter = 72 * 2 * 1000;
-	bmp_info.bmiHeader.biClrUsed = 0;
-	bmp_info.bmiHeader.biClrImportant = 0;
-	bmp_data = NULL;
-	bmp_handle = CreateDIBSection(
-		NULL, &bmp_info, DIB_RGB_COLORS, (void **)&bmp_data, NULL, 0);
-
-
-	if (bmp_handle2)
-		::DeleteObject(bmp_handle2);
-
-	HWND hSild = GetDlgItem(IDC_PSILDER);
-	::GetWindowRect(hSild, rtSil);
-
-	// 留12px绘制滑块
-	w = rtSil.Width() - 12;
-	h = 256;
-	m_nBuffSize = 256;
-
-	// color2
-	bmp_info2.bmiHeader.biSize = sizeof (BITMAPINFO);
-	bmp_info2.bmiHeader.biWidth = w;
-	bmp_info2.bmiHeader.biHeight = h;
-	bmp_info2.bmiHeader.biPlanes = 1;
-	bmp_info2.bmiHeader.biBitCount = 32;
-	bmp_info2.bmiHeader.biCompression = BI_RGB;
-	bmp_info2.bmiHeader.biSizeImage = w * h * 32 / 8;
-	bmp_info2.bmiHeader.biXPelsPerMeter =
-	bmp_info2.bmiHeader.biYPelsPerMeter = 72 * 2 * 1000;
-	bmp_info2.bmiHeader.biClrUsed = 0;
-	bmp_info2.bmiHeader.biClrImportant = 0;
-	bmp_data2 = NULL;
-	bmp_handle2 = CreateDIBSection(
-		NULL, &bmp_info2, DIB_RGB_COLORS, (void **)&bmp_data2, NULL, 0);
-
-	if (bmp_handle3)
-		::DeleteObject(bmp_handle3);
-
-
-	// alpha
-	bmp_info3.bmiHeader.biSize = sizeof (BITMAPINFO);
-	bmp_info3.bmiHeader.biWidth = w;
-	bmp_info3.bmiHeader.biHeight = h;
-	bmp_info3.bmiHeader.biPlanes = 1;
-	bmp_info3.bmiHeader.biBitCount = 32;
-	bmp_info3.bmiHeader.biCompression = BI_RGB;
-	bmp_info3.bmiHeader.biSizeImage = w * h * 32 / 8;
-	bmp_info3.bmiHeader.biXPelsPerMeter =
-	bmp_info3.bmiHeader.biYPelsPerMeter = 72 * 2 * 1000;
-	bmp_info3.bmiHeader.biClrUsed = 0;
-	bmp_info3.bmiHeader.biClrImportant = 0;
-	bmp_data3 = NULL;
-	bmp_handle3 = CreateDIBSection(
-		NULL, &bmp_info3, DIB_RGB_COLORS, (void **)&bmp_data3, NULL, 0);
-
-}
 
 void CMainDlg::SetClipboardText(CString str)
 {
@@ -1717,7 +1726,7 @@ void CMainDlg::OnEditControlChange(UINT uNotifyCode, int nID, CWindow wndCtl)
 	int h, s, v;
 	int h1, s1, l;
 
-	if (GetDlgItemInt(nID) == 0 && nID != IDC_ASS && nID != IDC_HTML) return;
+	//if (GetDlgItemInt(nID) == 0 && nID != IDC_ASS && nID != IDC_HTML) return;
 
 	if (IDC_RED == nID || IDC_GREEN == nID || IDC_BLUE == nID) {
 		
@@ -2040,8 +2049,11 @@ void CMainDlg::OnDropDown(UINT uNotifyCode, int nID, CWindow wndCtl)
 	::SendMessage(m_combomenu.m_hWnd, CB_SETDROPPEDWIDTH, 70, 0);
 }
 
-
-
+void CMainDlg::OnSize(UINT nType, CSize size)
+{
+	// 防止窗口从任务栏恢复时edit获得焦点
+	PostMessage(WM_LBUTTONDOWN);
+}
 
 
 

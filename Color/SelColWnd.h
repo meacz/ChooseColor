@@ -24,7 +24,6 @@ public:
 public:
 	BOOL m_bShow = FALSE;
 	HCURSOR m_cur;
-	HWND m_par;
 	COLORREF m_pixcol;
 public:
 
@@ -50,7 +49,7 @@ public:
 		GetClientRect(rc);
 		if(m_bShow)
 		{
-			::GetCursorPos(&pt);
+			GetCursorPos(&pt);
 			CDC sDC = ::GetDC(NULL);
 
 			// 放大光标所在矩形区域内图像
@@ -67,7 +66,7 @@ public:
 		else
 			dc.FillSolidRect(rc, RGB(255, 255, 255));
 
-		return ::DefWindowProc(m_hWnd, uMsg, wParam, lParam);
+		return DefWindowProc();
 	}
 
 	void CSelColDlg::OnTimer(UINT_PTR nIDEvent)
@@ -95,7 +94,7 @@ public:
 		if (nFlags & MK_LBUTTON)
 		{
 			m_pixcol = GetPixel(dc, point.x, point.y);
-			::SendMessage(m_par, WM_UPDATECOLOR, UPDATE_CHOOSE_COLOR, m_pixcol);
+			::SendMessage(GetParent(), WM_UPDATECOLOR, UPDATE_CHOOSE_COLOR, m_pixcol);
 		}
 	}
 

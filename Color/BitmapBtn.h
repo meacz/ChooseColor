@@ -66,6 +66,7 @@ public:
 				m_bHover = FALSE;
 				Invalidate(FALSE);
 			}
+
 			m_color = COLOR_ORDER_BTN_SELECTED;
 			if (lpDIS->CtlID == IDC_CLOSE)
 				m_color = COLOR_CLOSE_BTN_SELECTED;
@@ -97,7 +98,7 @@ public:
 			{
 				this->SetCapture();
 				m_bHover = TRUE;
-				Invalidate(FALSE);
+				Invalidate(TRUE);
 				//ATLTRACE("true\n");
 			}
 		}
@@ -107,7 +108,7 @@ public:
 			if (m_bHover)
 			{
 				m_bHover = FALSE;
-				Invalidate(FALSE);
+				Invalidate(TRUE);
 				//ATLTRACE("false\n");
 			}
 		}
