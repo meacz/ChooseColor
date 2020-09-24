@@ -66,9 +66,6 @@ public:
 		CRect rect;
 		GetClientRect(rect);
 
-		if	 (m_bHover) SetFocus();
-		else OnKillFocus(GetFocus());
-
 		dc.FillSolidRect(rect, m_bHover ? COLOR_COMBOBOX_HOVER : COLOR_COMBOBOX_NORMAL);
 		CString str;
 		GetWindowText(str);
